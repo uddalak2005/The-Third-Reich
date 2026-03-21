@@ -72,6 +72,29 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  grpc-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentguard-grpc
+    volumes:
+      - ./policy.yaml:/app/policy.yaml:ro
+      - ./certs:/app/certs
+      - ./ag_proxy/patterns.json:/app/ag_proxy/patterns.json
+    environment:
+      - AGENTGUARD_GRPC_PORT=50051
+      - AGENTGUARD_SIGNING_SECRET=${AGENTGUARD_SIGNING_SECRET:-change-this-secret}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    ports:
+      - "50051:50051"
+    networks:
+      - agentguard-net
+    entrypoint: ["python3", "backend/grpc_server.py"]
+    depends_on:
+      agentguard:
+        condition: service_healthy
+    restart: unless-stopped
+
 networks:
   agentguard-net:
     driver: bridge
