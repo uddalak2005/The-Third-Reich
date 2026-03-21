@@ -1,9 +1,0 @@
-# AgentGuard test dependencies
-pytest>=8.1.0
-pytest-timeout>=2.3.0
-requests>=2.31.0             # for SDK mock tests
-fastapi>=0.111.0             # for daemon API tests
-httpx>=0.27.0                # async test client for FastAPI
-pyyaml>=6.0.1
-structlog>=24.1.0
-rich>=13.7.0                 # for simulate_traffic.py result table
