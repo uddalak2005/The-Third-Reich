@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package messaging;
+
+service PromptService {
+  rpc SendPrompt (PromptRequest) returns (PromptResponse);
+}
+
+message PromptRequest {
+  string prompt = 1;
+  string intent = 2;
+}
+
+message PromptResponse {
+  bool approved = 1;  // Python server responds with yes/no
+}

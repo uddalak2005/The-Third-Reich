@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum KeyStatus {
+  ACTIVE
+  DEACTIVATED
+  EXPIRED
+}
+
+model HollowKey {
+  id            String     @id @default(uuid())
+  userId        String     @db.VarChar(255)
+  name          String     @default("Reich Key")
+  agentId       String     @db.VarChar(255)
+  agentName     String     @db.VarChar(255)
+  provider      String     @db.VarChar(255)
+  allowedIntent String     @db.Text
+  status        KeyStatus  @default(ACTIVE)
+  timesUsed     Int        @default(0)
+  lastUsedAt    DateTime   @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime   @default(now())
+  shards        KeyShard[]
+  events        KeyEvent[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+model KeyShard {
+  id            String   @id @default(uuid())
+  hollowKeyId   String
+  shardIndex    Int
+  vaultLocation String   @db.VarChar(255)
+  shardHash     String   @db.VarChar(255)
+  createdAt     DateTime @default(now())
+
+  hollowKey HollowKey @relation(fields: [hollowKeyId], references: [id], onDelete: Cascade)
+
+  @@index([hollowKeyId])
+}
+
+model KeyEvent {
+  id          String   @id @default(uuid())
+  hollowKeyId String
+  eventType   String   @db.VarChar(50)
+  traceId     String?  @db.VarChar(255)
+  agentId     String?  @db.VarChar(255)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  hollowKey HollowKey @relation(fields: [hollowKeyId], references: [id], onDelete: Cascade)
+
+  @@index([hollowKeyId])
+}

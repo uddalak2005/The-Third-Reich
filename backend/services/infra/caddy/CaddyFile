@@ -1,0 +1,14 @@
+https://localhost:4000 {
+    reverse_proxy https://localhost:3000 {
+        transport http {
+            # skip cert verification for local self-signed certs
+            tls_insecure_skip_verify
+        }
+    }
+
+    # Optional: enable logging for debugging
+    log {
+        output file /tmp/caddy_access.log
+        format console
+    }
+}

@@ -1,0 +1,12 @@
+services:
+  stunnel:
+    image: dweomer/stunnel
+    platform: linux/arm64
+    ports:
+      - "443:443"
+    volumes:
+      - ./stunnel.conf:/etc/stunnel/stunnel.conf:ro
+      - ./stunnel.pem:/etc/stunnel/stunnel.pem:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

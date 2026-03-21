@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SandboxLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  sandboxId  String   @db.VarChar(255)
+  agentId    String   @db.VarChar(255)
+  userId     String   @db.VarChar(255)
+  image      String   @db.VarChar(255)
+  command    String[]
+  intent     String   @db.Text
+  stdout     String?  @db.Text
+  stderr     String?  @db.Text
+  exitCode   Int?
+  status     String   @db.VarChar(50)
+  durationMs Int
+  executedAt DateTime @default(now()) @db.Timestamptz
+
+  @@map("sandbox_logs")
+}
