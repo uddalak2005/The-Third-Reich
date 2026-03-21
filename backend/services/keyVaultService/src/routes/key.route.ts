@@ -10,4 +10,6 @@ router.post('/revoke/:id', keyVaultController.revoke);
 
 router.post('/callApi', keyVaultController.executeInEnclave);
 
+router.post('/getKeys', keyVaultController.getUserKeys);
+
 export default router;

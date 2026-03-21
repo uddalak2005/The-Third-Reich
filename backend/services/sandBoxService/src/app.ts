@@ -14,7 +14,7 @@ app.get('/health-check', (req: Request, res: Response) => {
     res.send('The Sandbox Service of the Third Reich is on Duty');
 });
 
-app.use('/sandbox', sandboxRouter);
+app.use('/', sandboxRouter);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof AppError) {

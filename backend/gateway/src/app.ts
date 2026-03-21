@@ -2,7 +2,9 @@ import express from 'express';
 import { Request, Response } from 'express';
 import keyVaultProxy from './proxy/keyVault.proxy';
 import userProxyMiddleware from './proxy/user.proxy';
+import sandboxProxyMiddleware from './proxy/sandbox.proxy';
 import cors from 'cors';
+import {websocketProxy} from "./proxy/socket.controlPlane.proxy";
 
 const app = express();
 
@@ -16,5 +18,7 @@ app.get('/health-check', (req: Request, res: Response) => {
 
 app.use('/keys', keyVaultProxy);
 app.use('/user', userProxyMiddleware);
+app.use('/socket', websocketProxy);
+app.use('/sandbox', sandboxProxyMiddleware);
 
 export default app;

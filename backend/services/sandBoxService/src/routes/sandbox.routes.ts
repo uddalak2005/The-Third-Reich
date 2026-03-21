@@ -10,4 +10,5 @@ sandboxRouter.post(
     validate(ExecuteSandboxSchema),
     SandboxController.execute,
 );
-sandboxRouter.get('/logs', SandboxController.logs);
+sandboxRouter.get('/logs', SandboxController.getSandboxLogs);
+

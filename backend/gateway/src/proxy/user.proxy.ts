@@ -5,6 +5,7 @@ import { config } from '../config/config';
 const userProxyMiddleware = createProxyMiddleware({
     target: config.USER_SERVICE_URL as string,
     changeOrigin: true,
+    ws: true,
     pathRewrite: {
         '^/user': '',
     },

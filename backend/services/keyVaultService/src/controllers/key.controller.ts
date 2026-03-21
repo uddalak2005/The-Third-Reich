@@ -219,6 +219,38 @@ class KeyController {
             latency: result.latency,
         });
     }
+
+    async getUserKeys(req: Request, res: Response) {
+        const userId = req.body.userId;
+
+        if (!userId) {
+            throw new AppError('User ID required', 'MISSING_USER_ID', 400)
+        }
+
+        const keys = await prisma.hollowKey.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id:            true,
+                name:          true,
+                agentId:       true,
+                agentName:     true,
+                provider:      true,
+                allowedIntent: true,
+                status:        true,
+                timesUsed:     true,
+                lastUsedAt:    true,
+                expiresAt:     true,
+                createdAt:     true,
+                // Never return shards
+            }
+        })
+
+        res.status(200).json({
+            keys,
+            total: keys.length
+        })
+    }
 }
 
 export default new KeyController();

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { runSandbox, getSandboxLogs } from '../services/sandbox.service';
 import { ExecuteSandboxInput } from '../types';
+import {AppError} from "../error/AppError";
+import {prisma} from "../db/prisma";
 
 export class SandboxController {
     static async execute(
@@ -21,13 +23,26 @@ export class SandboxController {
         }
     }
 
-    static async logs(req: Request, res: Response, next: NextFunction) {
-        try {
-            const userId = (req.headers['x-user-id'] as string) || 'unknown';
-            const logs = await getSandboxLogs(userId);
-            return res.status(200).json({ logs, total: logs.length });
-        } catch (err) {
-            next(err);
+
+    static async getSandboxLogs(req: Request, res: Response) {
+        const userId = req.headers['x-user-id'] as string
+
+        if (!userId) {
+            throw new AppError('User ID required', 'MISSING_USER_ID', 400)
         }
+
+        const logs = await prisma.sandboxLog.findMany({
+            where:   { userId },
+            orderBy: { executedAt: 'desc' },
+            take:    50    // last 50 only
+        })
+
+        res.status(200).json({
+            logs,
+            total: logs.length
+        })
     }
+
+
+
 }
