@@ -55,7 +55,6 @@ export async function executeInEnclave(
             );
         }
 
-
         headers[request.keyHeader] = headers[request.keyHeader].replace(
             request.hollowKeyId,
             realKey,

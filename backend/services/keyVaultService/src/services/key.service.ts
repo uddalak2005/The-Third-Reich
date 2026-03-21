@@ -6,8 +6,8 @@ import { deleteShards, distribute } from './shard.service';
 import { AppError } from '../error/AppError';
 import { Prisma } from '@prisma/client/extension';
 
-import {KafkaProducer} from "../kafka/producer";
-import {TOPICS} from "../kafka";
+import { KafkaProducer } from '../kafka/producer';
+import { TOPICS } from '../kafka';
 import { v4 as uuidv4 } from 'uuid';
 
 const KEY_CACHE_TTL = 300;
@@ -15,7 +15,10 @@ const KEY_CACHE_TTL = 300;
 /*
  * Create an Event and Publish to Kafka using the KafkaProducer Class
  */
-async function publishKeyRegistration(hollowKey : HollowKey, action : string): Promise<void> {
+async function publishKeyRegistration(
+    hollowKey: HollowKey,
+    action: string,
+): Promise<void> {
     const producer = new KafkaProducer('key-service');
 
     await producer.connect();
@@ -30,7 +33,11 @@ async function publishKeyRegistration(hollowKey : HollowKey, action : string): P
         service: 'key-service',
     };
 
-    await producer.publish(TOPICS.HOLLOW_KEY_EVENTS, keyEvent, keyEvent.eventId);
+    await producer.publish(
+        TOPICS.HOLLOW_KEY_EVENTS,
+        keyEvent,
+        keyEvent.eventId,
+    );
 
     console.log('Key Event Published Successfully');
 

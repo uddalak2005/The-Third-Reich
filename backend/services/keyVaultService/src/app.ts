@@ -23,6 +23,7 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
             code: err.code,
             message: err.message,
             status: err.status,
+            ...err.metadata,
         });
         return;
     }

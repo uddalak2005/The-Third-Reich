@@ -1,5 +1,5 @@
 import { Kafka, logLevel } from 'kafkajs';
-import {config} from "../config";
+import { config } from '../config';
 
 export function kafkaClient(serviceId: String): Kafka {
     return new Kafka({

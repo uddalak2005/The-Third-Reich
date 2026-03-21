@@ -1,6 +1,6 @@
-import {kafkaClient} from "./index";
+import { kafkaClient } from './index';
 
-type Handler = (data :  any, topic : string) => any;
+type Handler = (data: any, topic: string) => any;
 
 export async function startConsumer(
     groupId: string,
@@ -8,7 +8,7 @@ export async function startConsumer(
     handlers: Record<string, Handler>,
 ) {
     const kafka = kafkaClient('topic-creator');
-    const consumer = kafka.consumer({groupId});
+    const consumer = kafka.consumer({ groupId });
 
     await consumer.connect();
 
@@ -21,10 +21,10 @@ export async function startConsumer(
     console.log(`Topics:`, topics);
 
     await consumer.run({
-        eachMessage: async ( {topic, message } ) => {
+        eachMessage: async ({ topic, message }) => {
             if (!message.value) return;
 
-            try{
+            try {
                 const data = JSON.parse(message.value.toString());
 
                 const handler = handlers[topic];
@@ -35,11 +35,10 @@ export async function startConsumer(
                 }
 
                 await handler(data, topic);
-            }
-            catch (err: any) {
+            } catch (err: any) {
                 console.error(`Error on topic ${topic}:`, err.message);
-                console.error("Raw message:", message.value.toString());
+                console.error('Raw message:', message.value.toString());
             }
-        }
-    })
+        },
+    });
 }

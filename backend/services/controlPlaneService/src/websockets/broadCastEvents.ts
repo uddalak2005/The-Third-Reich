@@ -11,3 +11,9 @@ export function broadcastSandboxEvent(event: string, payload: any) {
     const io = getIo();
     io.emit(event, payload);
 }
+
+export function broadcastAttackEvent(event: string, payload: any) {
+    console.log('Received attack event', event, payload);
+    const io = getIo();
+    io.emit(event, payload);
+}

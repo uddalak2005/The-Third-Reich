@@ -68,3 +68,8 @@ export interface KeyEvent {
     agentId?: string;
     metadata?: Record<string, unknown>;
 }
+
+export interface Attack {
+    authorized: string;
+    reason: string;
+}

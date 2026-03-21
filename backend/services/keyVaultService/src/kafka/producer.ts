@@ -1,5 +1,5 @@
 import { Producer, Message } from 'kafkajs';
-import {kafkaClient, TopicName} from './index';
+import { kafkaClient, TopicName } from './index';
 
 export class KafkaProducer {
     private producer: Producer;
@@ -45,28 +45,30 @@ export class KafkaProducer {
     }
 
     async publishBatch(
-        events : Array<{topic : TopicName, payLoad: Record<string, unknown>}>
+        events: Array<{ topic: TopicName; payLoad: Record<string, unknown> }>,
     ): Promise<void> {
+        const grouped = events.reduce(
+            (acc, { topic, payLoad }) => {
+                if (!acc[topic]) acc[topic] = [];
 
-        const grouped = events.reduce((acc, {topic, payLoad}) => {
-            if(!acc[topic]) acc[topic] = []
+                acc[topic].push({
+                    key: (payLoad.eventId as string) ?? null,
+                    value: JSON.stringify({
+                        ...payLoad,
+                        publishedAt: new Date().toISOString(),
+                    }),
+                });
 
-            acc[topic].push({
-                key:   payLoad.eventId as string ?? null,
-                value : JSON.stringify({
-                    ...payLoad,
-                    publishedAt: new Date().toISOString(),
-                })
-            })
-
-            return acc;
-        }, {} as Record<string, Message[]>);
+                return acc;
+            },
+            {} as Record<string, Message[]>,
+        );
 
         await this.producer.sendBatch({
             topicMessages: Object.entries(grouped).map(([topic, messages]) => ({
                 topic,
                 messages,
-            }))
-        })
+            })),
+        });
     }
 }

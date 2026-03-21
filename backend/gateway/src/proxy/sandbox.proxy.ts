@@ -10,11 +10,11 @@ interface KeyVaultRequest extends Request {
 }
 
 const sandboxProxyMiddleware = createProxyMiddleware({
-    target: config.KEY_VAULT_URL as string,
+    target: config.SANDBOX_SERVICE_URL as string,
     changeOrigin: true,
     ws: true,
     pathRewrite: {
-        '^/keys': '',
+        '^/sandbox': '',
     },
     on: {
         proxyReq: (proxyReq, req: KeyVaultRequest) => {

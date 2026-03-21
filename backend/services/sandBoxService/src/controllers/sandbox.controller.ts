@@ -25,7 +25,7 @@ export class SandboxController {
 
 
     static async getSandboxLogs(req: Request, res: Response) {
-        const userId = req.headers['x-user-id'] as string
+        const userId = '5cf9d008-f387-4ecf-9fac-8f4583b2988c';
 
         if (!userId) {
             throw new AppError('User ID required', 'MISSING_USER_ID', 400)
@@ -34,7 +34,7 @@ export class SandboxController {
         const logs = await prisma.sandboxLog.findMany({
             where:   { userId },
             orderBy: { executedAt: 'desc' },
-            take:    50    // last 50 only
+            take:    50
         })
 
         res.status(200).json({

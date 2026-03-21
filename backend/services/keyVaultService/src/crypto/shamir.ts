@@ -41,11 +41,11 @@ function modInverse(a: bigint, m: bigint = P): bigint {
 }
 
 function randomBigInt(): bigint {
-    let n: bigint
+    let n: bigint;
     do {
-        n = BigInt('0x' + randomBytes(66).toString('hex'))  // 66 bytes = 528 bits > 521
-    } while (n >= P)   // rejection sampling — ensure n < P
-    return n
+        n = BigInt('0x' + randomBytes(66).toString('hex')); // 66 bytes = 528 bits > 521
+    } while (n >= P); // rejection sampling — ensure n < P
+    return n;
 }
 
 export function split(

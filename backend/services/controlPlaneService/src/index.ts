@@ -8,10 +8,12 @@ import { startConsumer } from './kafka/consumer';
 // Handler
 import { keyHandler } from './kafka/handlers/key.handler';
 import {sandboxHandler} from "./kafka/handlers/sandbox.handler";
+import {attackHandler} from "./kafka/handlers/attack.handler";
 
 const handlers = {
     'hollow.key.event': keyHandler,
-    'sandbox.lifecycle': sandboxHandler
+    'sandbox.lifecycle': sandboxHandler,
+    'attack.detected': attackHandler
 };
 
 const PORT = config.PORT || 3002;

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import {HollowKey, RegisterKeySchema} from '../types';
+import { Attack, HollowKey, RegisterKeySchema } from '../types';
 
 import {
     registerKey,
@@ -12,7 +12,10 @@ import { AppError } from '../error/AppError';
 import { prisma } from '../db/prisma';
 import { fetchShards } from '../services/shard.service';
 import { executeInEnclave } from '../crypto/enclave';
-import {checkIntent} from "../proto/intentFirewall.client";
+import { checkIntent } from '../proto/intentFirewall.client';
+import { KafkaProducer } from '../kafka/producer';
+import { v4 as uuidv4 } from 'uuid';
+import { TOPICS } from '../kafka';
 
 interface AuthRequest extends Request {
     user?: {
@@ -21,11 +24,11 @@ interface AuthRequest extends Request {
 }
 
 class KeyController {
-
     /*
      * Create New Keys and Split it via Shamir's Algorithm
      * Store the keys and the shards
      */
+
     async createKey(req: Request, res: Response) {
         try {
             console.log(req.body);
@@ -46,7 +49,6 @@ class KeyController {
             console.log(parsed.data);
 
             const hollowKey = await registerKey(parsed.data);
-
 
             res.status(200).json({
                 message: 'Success',
@@ -112,7 +114,7 @@ class KeyController {
      */
     async revoke(req: AuthRequest, res: Response) {
         try {
-            const userId = req.headers['x-user-id'] as string;
+            const userId = req.body.userId as string;
             /*
              * keyService checks that this agentId owns the key
              * Throws if not found or already revoked
@@ -154,11 +156,38 @@ class KeyController {
             throw new AppError('HollowKey has expired', 'KEY_EXPIRED', 403);
         }
 
-        const approved = await checkIntent(JSON.stringify(body), intent);
-        console.log('Approved : ',approved);
+        const intentResponse = await checkIntent(JSON.stringify(body), intent);
+        console.log('Approved : ', intentResponse);
 
-        if (!approved) {
+        if (!intentResponse.approved) {
             // Log the blocked attempt
+            console.log("To Kafka : ", intentResponse);
+
+            const producer = new KafkaProducer('key-service');
+
+            await producer.connect();
+
+            const keyEvent = {
+                eventId: uuidv4(),
+                keyId: uuidv4(),
+                action: 'BLOCKED',
+                reason: intentResponse.detected,
+                issuedAt: new Date().toISOString(),
+                service: 'key-service',
+            };
+
+            console.log(keyEvent);
+
+            await producer.publish(
+                TOPICS.ATTACK_DETECTED,
+                keyEvent,
+                keyEvent.eventId,
+            );
+
+            console.log('Key Event Published Successfully');
+
+            await producer.disconnect();
+
             await prisma.keyEvent.create({
                 data: {
                     hollowKeyId,
@@ -168,17 +197,22 @@ class KeyController {
                         url,
                         method,
                         blockedAt: new Date(),
+                        authorized: intentResponse.authorized,
+                        detected: intentResponse.detected,
                     }),
                 },
-            })
+            });
 
             throw new AppError(
                 'Intent Firewall blocked this request',
                 'INTENT_VIOLATION',
-                403
-            )
+                403,
+                {
+                    authorized: intentResponse.authorized,
+                    detected: intentResponse.detected,
+                },
+            );
         }
-
 
         const shards = await fetchShards(hollowKeyId);
 
@@ -220,36 +254,40 @@ class KeyController {
         });
     }
 
+    async publishAttackDetected(attack: Attack): Promise<void> {
+
+    }
+
     async getUserKeys(req: Request, res: Response) {
         const userId = req.body.userId;
 
         if (!userId) {
-            throw new AppError('User ID required', 'MISSING_USER_ID', 400)
+            throw new AppError('User ID required', 'MISSING_USER_ID', 400);
         }
 
         const keys = await prisma.hollowKey.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
             select: {
-                id:            true,
-                name:          true,
-                agentId:       true,
-                agentName:     true,
-                provider:      true,
+                id: true,
+                name: true,
+                agentId: true,
+                agentName: true,
+                provider: true,
                 allowedIntent: true,
-                status:        true,
-                timesUsed:     true,
-                lastUsedAt:    true,
-                expiresAt:     true,
-                createdAt:     true,
+                status: true,
+                timesUsed: true,
+                lastUsedAt: true,
+                expiresAt: true,
+                createdAt: true,
                 // Never return shards
-            }
-        })
+            },
+        });
 
         res.status(200).json({
             keys,
-            total: keys.length
-        })
+            total: keys.length,
+        });
     }
 }
 

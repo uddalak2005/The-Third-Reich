@@ -7,6 +7,7 @@ const envSchema = z.object({
     KEY_VAULT_URL: z.url(),
     JWT_SECRET: z.string().min(1),
     USER_SERVICE_URL: z.string().default('http://localhost:3003'),
+    SANDBOX_SERVICE_URL: z.string().default('http://localhost:3004'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -24,4 +25,5 @@ export const config = {
     KEY_VAULT_URL: parsed.data.KEY_VAULT_URL,
     JWT_SECRET: parsed.data.JWT_SECRET,
     USER_SERVICE_URL: parsed.data.USER_SERVICE_URL,
+    SANDBOX_SERVICE_URL: parsed.data.SANDBOX_SERVICE_URL
 };
