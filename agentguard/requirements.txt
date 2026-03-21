@@ -10,8 +10,8 @@
 #   pip install -r tests/requirements.txt
 
 # ── Kernel / BPF loading ──────────────────────────────────────────────────
-bcc>=0.26.0                  # BPF Compiler Collection (Python bindings)
-pyroute2>=0.7.9              # netlink — XDP/TC attachment, netns management
+#bcc>=0.26.0                  # BPF Compiler Collection (Python bindings)
+#pyroute2>=0.7.9              # netlink — XDP/TC attachment, netns management
 
 # ── Policy daemon ─────────────────────────────────────────────────────────
 fastapi>=0.111.0             # async REST API with auto OpenAPI docs

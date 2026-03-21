@@ -24,7 +24,7 @@ const creds = grpc.credentials.createSsl(
 )
 
 const client = new messaging.PromptService(
-    process.env.INTENT_FIREWALL_GRPC_URL || 'localhost:50051',
+    process.env.INTENT_FIREWALL_GRPC_URL || 'localhost:50052',
     creds
 ) as grpc.Client & {
     SendPrompt(
@@ -34,10 +34,16 @@ const client = new messaging.PromptService(
 }
 
 export function checkIntent(prompt: string, intent: string): Promise<boolean> {
+    console.log('Checking intent ', intent)
     return new Promise((resolve, reject) => {
         client.SendPrompt({ prompt, intent }, (err, response) => {
-            if (err) reject(err)
-            else resolve(response.approved)
-        })
-    })
+            if (err) {
+                console.error('gRPC Error:', err);
+                reject(err);
+            } else {
+                console.log('gRPC Response:', response);  // <-- log the full response
+                resolve(response.approved);
+            }
+        });
+    });
 }

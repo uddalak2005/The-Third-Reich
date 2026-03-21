@@ -154,30 +154,30 @@ class KeyController {
             throw new AppError('HollowKey has expired', 'KEY_EXPIRED', 403);
         }
 
-        // const approved = await checkIntent(JSON.stringify(body), intent);
-        // console.log(approved);
-        //
-        // if (!approved) {
-        //     // Log the blocked attempt
-        //     await prisma.keyEvent.create({
-        //         data: {
-        //             hollowKeyId,
-        //             eventType: 'INTENT_BLOCKED',
-        //             metadata: JSON.stringify({
-        //                 intent,
-        //                 url,
-        //                 method,
-        //                 blockedAt: new Date(),
-        //             }),
-        //         },
-        //     })
-        //
-        //     throw new AppError(
-        //         'Intent Firewall blocked this request',
-        //         'INTENT_VIOLATION',
-        //         403
-        //     )
-        // }
+        const approved = await checkIntent(JSON.stringify(body), intent);
+        console.log('Approved : ',approved);
+
+        if (!approved) {
+            // Log the blocked attempt
+            await prisma.keyEvent.create({
+                data: {
+                    hollowKeyId,
+                    eventType: 'INTENT_BLOCKED',
+                    metadata: JSON.stringify({
+                        intent,
+                        url,
+                        method,
+                        blockedAt: new Date(),
+                    }),
+                },
+            })
+
+            throw new AppError(
+                'Intent Firewall blocked this request',
+                'INTENT_VIOLATION',
+                403
+            )
+        }
 
 
         const shards = await fetchShards(hollowKeyId);
