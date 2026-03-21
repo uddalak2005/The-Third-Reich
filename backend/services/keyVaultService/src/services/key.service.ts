@@ -48,6 +48,7 @@ export async function registerKey(data: RegisterKeyInput) {
                         agentId: data.agentId,
                         agentName: data.agentName,
                         userId: data.userId,
+                        name: data.name,
                         provider: data.provider,
                         allowedIntent: data.allowedIntent,
                         expiresAt: data.expiresAt,
@@ -93,10 +94,7 @@ export async function findById(id: string): Promise<HollowKey | null> {
         agentName: key.agentName ?? '',
         provider: key.provider,
         allowedIntent: key.allowedIntent,
-        status: key.status.toLowerCase() as
-            | 'ACTIVE'
-            | 'DEACTIVATED'
-            | 'EXPIRED',
+        status: key.status,
         timesUsed: key.timesUsed,
         lastUsedAt: key.lastUsedAt ?? null,
         expiresAt: key.expiresAt ?? null,

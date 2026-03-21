@@ -25,7 +25,7 @@ export async function executeInEnclave(
     /*
      * execute the API requests in an enclave so that the API Keys does not even exist in the memory
      */
-
+    console.log(request, shards);
     // ------- Verify Shard Integrity --------
     for (const shard of shards) {
         if (!verifyShard(shard)) {
@@ -55,6 +55,7 @@ export async function executeInEnclave(
             );
         }
 
+
         headers[request.keyHeader] = headers[request.keyHeader].replace(
             request.hollowKeyId,
             realKey,
@@ -69,6 +70,8 @@ export async function executeInEnclave(
             timeout: 30_000,
             validateStatus: () => true,
         };
+
+        console.log(config);
         const response = await axios(config);
 
         return {

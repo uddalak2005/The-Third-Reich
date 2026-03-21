@@ -15,6 +15,8 @@ export const RegisterKeySchema = z.object({
         .min(3, 'Agent ID too short')
         .max(100, 'Agent ID too long'),
 
+    name: z.string().optional(),
+
     agentName: z
         .string()
         .min(1, 'Agent name required')

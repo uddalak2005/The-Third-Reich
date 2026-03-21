@@ -1,0 +1,40 @@
+# AgentGuard Docker Compose
+
+services:
+
+  agentguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentguard
+    privileged: true
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+      - /proc:/host-proc:ro
+      - ./policy.yaml:/app/policy.yaml:ro
+      - ./logs:/app/logs
+      - ./proxy/proxy.py:/app/proxy/proxy.py               # live mount
+      - ./proxy/tls_interceptor.py:/app/proxy/tls_interceptor.py  # live mount
+      - ./proxy/inspect_utils.py:/app/proxy/inspect_utils.py      # live mount
+      - ./certs:/app/certs                                         # CA cert output
+      - ./backend:/app/backend                       # live mount — no rebuild needed
+    environment:
+      - AGENTGUARD_IFACE=${AGENTGUARD_IFACE:-eth0}
+      - AGENTGUARD_HOST=${AGENTGUARD_HOST:-0.0.0.0}
+      - AGENTGUARD_PORT=${AGENTGUARD_PORT:-8080}
+      - AGENTGUARD_PROXY_PORT=${AGENTGUARD_PROXY_PORT:-8888}
+      - AGENTGUARD_LOG_JSON=${AGENTGUARD_LOG_JSON:-false}
+      - AGENTGUARD_CONFIG=${AGENTGUARD_CONFIG:-policy.yaml}
+      - AGENTGUARD_BPF_OBJ=${AGENTGUARD_BPF_OBJ:-agent_guard.bpf.o}
+      - AGENTGUARD_SANDBOX_HOST=${AGENTGUARD_SANDBOX_HOST:-127.0.0.1}
+      - AGENTGUARD_SANDBOX_PORT=${AGENTGUARD_SANDBOX_PORT:-9999}
+    ports:
+      - "8080:8080"   # FastAPI REST API + Swagger docs
+      - "8888:8888"   # Transparent proxy — point agents here
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
