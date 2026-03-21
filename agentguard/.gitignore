@@ -1,0 +1,28 @@
+# Configuration
+config.yaml
+**/config.yaml
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# Logs
+logs/*.log
+logs/*.jsonl
+
+# Security (Don't commit private certs/keys)
+certs/*.crt
+certs/*.key
+certs/*.cert
+
+# Development Debug Scripts
+debug_imports.py
+test_client_grpc.py
+test.py
+test_*.py

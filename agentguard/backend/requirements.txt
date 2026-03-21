@@ -1,0 +1,19 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+websockets==13.1
+pydantic==2.10.3
+pyyaml==6.0.2
+structlog==24.4.0
+requests==2.32.3
+pyroute2==0.7.12
+# File inspection
+pdfminer.six==20231228
+python-docx==1.1.2
+python-pptx==1.0.2
+openpyxl==3.1.5
+# Image OCR (optional — skipped gracefully if tesseract not installed)
+# pytesseract==0.3.13
+# Pillow==11.0.0
+
+grpcio==1.68.1
+grpcio-tools==1.68.1

@@ -1,0 +1,77 @@
+# AgentGuard — Full Stack Docker Compose
+# ========================================
+# NOTE: Individual .py files are NOT volume-mounted
+# because Docker Desktop on Windows creates empty directory
+# placeholders instead of mounting files.
+# All source files are baked into the image via Dockerfile COPY.
+# Only data directories (logs, certs, versions) are mounted.
+#
+# To apply code changes: docker-compose up --build
+# To start everything:   docker-compose up -d
+# To start AgentGuard only: docker-compose up agentguard
+
+services:
+
+  agentguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentguard
+    privileged: true
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+      - /proc:/host-proc:ro
+      - ./policy.yaml:/app/policy.yaml:ro
+      - ./logs:/app/logs
+      - ./certs:/app/certs
+      - ./ag_proxy/patterns.json:/app/ag_proxy/patterns.json
+    environment:
+      - AGENTGUARD_IFACE=${AGENTGUARD_IFACE:-eth0}
+      - AGENTGUARD_HOST=${AGENTGUARD_HOST:-0.0.0.0}
+      - AGENTGUARD_PORT=${AGENTGUARD_PORT:-8080}
+      - AGENTGUARD_PROXY_PORT=${AGENTGUARD_PROXY_PORT:-8888}
+      - AGENTGUARD_LOG_JSON=${AGENTGUARD_LOG_JSON:-false}
+      - AGENTGUARD_CONFIG=${AGENTGUARD_CONFIG:-policy.yaml}
+      - AGENTGUARD_BPF_OBJ=${AGENTGUARD_BPF_OBJ:-agent_guard.bpf.o}
+      - AGENTGUARD_SANDBOX_HOST=${AGENTGUARD_SANDBOX_HOST:-127.0.0.1}
+      - AGENTGUARD_SANDBOX_PORT=${AGENTGUARD_SANDBOX_PORT:-9999}
+      - AGENTGUARD_SIGNING_SECRET=${AGENTGUARD_SIGNING_SECRET:-change-this-secret}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    ports:
+      - "8080:8080"
+      - "8888:8888"
+    networks:
+      - agentguard-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  exploitation-lab:
+    build:
+      context: .
+      dockerfile: Exploitation_Lab/Dockerfile
+    container_name: exploitation-lab
+    volumes:
+      - ./Exploitation_Lab/config/config.yaml:/app/Exploitation_Lab/config/config.yaml:ro
+      - ./ag_proxy/patterns.json:/app/ag_proxy/patterns.json
+      - ./versions:/app/versions
+      - ./logs:/app/logs
+    environment:
+      - AGENTGUARD_API=http://agentguard:8080
+      - AGENTGUARD_WS=ws://agentguard:8080/ws/dashboard
+      - AGENTGUARD_PROXY=http://agentguard:8888
+      - GHOST_CONFIG=/app/Exploitation_Lab/config/config.yaml
+    networks:
+      - agentguard-net
+    depends_on:
+      agentguard:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  agentguard-net:
+    driver: bridge

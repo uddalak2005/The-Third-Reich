@@ -1,0 +1,176 @@
+# AgentGuard Policy Configuration
+# ===================================
+# This file defines:
+#   - policies: what each category of agent is allowed to do
+#   - agents: which processes to track and which policy to apply
+#   - threat_intel: known-bad IPs/CIDRs to block at wire level
+#
+# Reload without restart: POST /api/policies/reload
+# Hot-block an IP:        POST /api/threat_intel/add_ip {"ip": "1.2.3.4"}
+
+# ─── Global settings ──────────────────────────────────────────────────────────
+global:
+  enabled: true
+  default_policy: "trusted"        # policy for unrecognized processes (change to restricted in production)
+  http_inspection: true
+  log_allowed: false               # set true for full audit (high volume)
+  alert_webhook: ""                # POST JSON events here; empty = disabled
+
+# ─── Policy definitions ───────────────────────────────────────────────────────
+policies:
+
+  # RESTRICTED: Safe sandbox for untested or third-party agents
+  # - HTTPS only, no external internet, no process spawning
+  # - HTTP body inspection enabled, blocks on injection detection
+  - id: 1
+    name: "restricted"
+    allowed_ports:
+      - 443      # HTTPS
+      - 8443     # HTTPS alt
+    max_bytes_per_sec: 1048576     # 1 MB/s outbound max
+    max_connections: 20
+    max_new_conns_per_sec: 5
+    allow_exec: false
+    allow_fork: false
+    allow_ptrace: false
+    allow_raw_sockets: false
+    allow_bind: false
+    allow_external_net: false      # internal network only
+    inspect_http: true
+    block_on_injection: true       # DROP packet if injection score > 0
+
+  # INTERNAL: For agents that need to reach internal APIs and databases
+  # - More ports open, still no external internet
+  - id: 2
+    name: "internal"
+    allowed_ports:
+      - 80       # HTTP
+      - 443      # HTTPS
+      - 5432     # PostgreSQL
+      - 6379     # Redis
+      - 8080     # Internal API
+      - 8443     # Internal API (TLS)
+      - 9200     # Elasticsearch
+    max_bytes_per_sec: 10485760    # 10 MB/s
+    max_connections: 100
+    max_new_conns_per_sec: 20
+    allow_exec: false
+    allow_fork: false
+    allow_ptrace: false
+    allow_raw_sockets: false
+    allow_bind: false
+    allow_external_net: false
+    inspect_http: true
+    block_on_injection: true
+
+  # TRUSTED: For certified, audited production agents with external access
+  # - Broad port access, external internet allowed
+  # - Still blocks ptrace, raw sockets, exec
+  - id: 3
+    name: "trusted"
+    allowed_ports:
+      - 80
+      - 443
+      - 587      # SMTP (email sending)
+      - 993      # IMAPS
+      - 5432
+      - 6379
+      - 8080
+      - 8443
+      - 9200
+      - 11434    # Ollama local LLM
+    max_bytes_per_sec: 104857600   # 100 MB/s
+    max_connections: 500
+    max_new_conns_per_sec: 100
+    allow_exec: false              # still no exec — agents don't need it
+    allow_fork: false
+    allow_ptrace: false
+    allow_raw_sockets: false
+    allow_bind: false
+    allow_external_net: true       # can reach internet
+    inspect_http: true
+    block_on_injection: true       # block injection attempts on all policies
+
+  # DANGEROUS: Absolute lockdown for a compromised or suspicious agent
+  # All traffic blocked, kills process on any dangerous syscall
+  - id: 4
+    name: "quarantine"
+    allowed_ports: []              # empty = whitelist nothing
+    max_bytes_per_sec: 0
+    max_connections: 0
+    max_new_conns_per_sec: 0
+    allow_exec: false
+    allow_fork: false
+    allow_ptrace: false
+    allow_raw_sockets: false
+    allow_bind: false
+    allow_external_net: false
+    inspect_http: true
+    block_on_injection: true
+
+# ─── Agent definitions ────────────────────────────────────────────────────────
+# Process matching: comm (from /proc/<pid>/comm) + optional cmdline substring
+# The daemon scans /proc every 2 seconds and auto-registers matches.
+agents:
+
+  # Python-based LangChain / LangGraph agents
+  - name: "langchain-agent"
+    process_name: "python3"
+    cmdline_contains: "langchain"
+    policy: "restricted"
+
+  - name: "langgraph-agent"
+    process_name: "python3"
+    cmdline_contains: "langgraph"
+    policy: "internal"
+
+  # Node.js agents (LangChainJS, Vercel AI SDK, etc.)
+  - name: "node-ai-agent"
+    process_name: "node"
+    cmdline_contains: "agent"
+    policy: "internal"
+
+  # OpenAI Assistants / Swarm framework
+  - name: "openai-assistant"
+    process_name: "python3"
+    cmdline_contains: "openai"
+    policy: "trusted"
+
+  # AutoGen (Microsoft)
+  - name: "autogen-agent"
+    process_name: "python3"
+    cmdline_contains: "autogen"
+    policy: "restricted"
+
+  # CrewAI
+  - name: "crewai-agent"
+    process_name: "python3"
+    cmdline_contains: "crewai"
+    policy: "internal"
+
+  # Claude Code (Anthropic) — needs exec to run terminal commands
+  # Note: exec allowed but still inspected
+  - name: "claude-code"
+    process_name: "node"
+    cmdline_contains: "claude"
+    policy: "trusted"
+
+  # Generic "agent.py" catch-all
+  - name: "generic-python-agent"
+    process_name: "python3"
+    cmdline_contains: "agent.py"
+    policy: "restricted"
+
+# ─── Threat intelligence ──────────────────────────────────────────────────────
+# IPs/CIDRs are loaded into the BPF blocked_ips map at startup.
+# Use /api/threat_intel/add_ip for live updates.
+threat_intel:
+  blocked_ips:
+    # Tor exit node ranges (agents should not talk to Tor)
+    - "185.220.101.0/24"
+    - "185.220.102.0/23"
+    - "199.87.154.0/24"
+    # Common cryptominer pool IPs
+    - "107.189.10.0/24"
+    # Example: block all traffic to a specific C2 IP
+    # - "1.2.3.4/32"
