@@ -324,6 +324,7 @@ async def inject_demo_event(body: InjectEventRequest):
         "size":              1024,
         "verdict":           body.verdict,
         "threat_level":      body.threat_level,
+        "blocked":           body.verdict in ("block", "kill"),
         "injection_score":   body.injection_score,
         "injection_patterns": body.injection_patterns or [],
         "payload_sample":    body.payload_sample,
@@ -339,10 +340,13 @@ async def inject_demo_event(body: InjectEventRequest):
         d.stats.packets_seen += 1
         if body.verdict in ("block", "kill"):
             d.stats.packets_blocked += 1
+            d.stats.blocked         = True
         if body.event_type == "prompt_injection":
             d.stats.injections_found += 1
+            d.stats.blocked          = True
         if body.event_type == "agent_kill":
             d.stats.kills_issued += 1
+            d.stats.blocked       = True
 
     # Write to audit log
     if _audit_log:

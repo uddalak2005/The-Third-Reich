@@ -42,7 +42,23 @@ class PromptServiceServicer(messaging_pb2_grpc.PromptServiceServicer):
             response = await rest_verify_prompt(verify_req)
             is_approved = response.get("verdict") == "ALLOW"
             
-            return messaging_pb2.PromptResponse(approved=is_approved)
+            # Map findings to a comma-separated string for "detected"
+            findings = response.get("findings", [])
+            detected_list = []
+            for f in findings:
+                if isinstance(f, dict):
+                    detected_list.append(f.get("description", f.get("layer", "unknown")))
+                else:
+                    detected_list.append(str(f))
+            
+            detected_str = ", ".join(detected_list) if not is_approved else ""
+            authorized_str = request.intent if is_approved else "none"
+
+            return messaging_pb2.PromptResponse(
+                approved=is_approved,
+                authorized=authorized_str,
+                detected=detected_str
+            )
         except Exception as e:
             log.error(f"Error processing gRPC request: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
@@ -76,14 +92,13 @@ def serve():
 
     return server, server_address
 
+async def run_grpc_server():
+    server, addr = serve()
+    await server.start()
+    log.info(f"gRPC server listening on {addr}")
+    await server.wait_for_termination()
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     import asyncio
-    
-    async def main():
-        server, addr = serve()
-        await server.start()
-        print(f"gRPC server listening on {addr}")
-        await server.wait_for_termination()
-    
-    asyncio.run(main())
+    asyncio.run(run_grpc_server())

@@ -49,6 +49,10 @@
             addEvent('✏️ Sandbox Created: ' + JSON.stringify(data));
         });
 
+        socket.on('attack.detected', (data) => {
+            addEvent('✏️ Attack Detected: ' + JSON.stringify(data));
+        })
+
         // Emit test event after connection
         socket.on('connect', () => {
             socket.emit('key:register', { id: 'abc123', name: 'MyKey' });

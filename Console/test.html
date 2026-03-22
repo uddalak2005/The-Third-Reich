@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
+  </head>
+
+  <body>
+    <h1>Socket.IO Client Test</h1>
+
+    <div id="status"></div>
+    <h3>Events:</h3>
+    <ul id="events"></ul>
+
+    <script>
+      const statusDiv = document.getElementById("status");
+      const eventsList = document.getElementById("events");
+
+      function addEvent(message) {
+        const li = document.createElement("li");
+        li.textContent = message;
+        eventsList.appendChild(li);
+      }
+
+      // Connect to server
+      const socket = io(
+        "https://informal-conditioning-weed-appropriate.trycloudflare.com",
+      );
+
+      socket.on("connect", () => {
+        statusDiv.textContent = "✅ Connected: " + socket.id;
+        addEvent("Connected to server");
+      });
+
+      socket.on("disconnect", (reason) => {
+        statusDiv.textContent = "❌ Disconnected: " + reason;
+        addEvent("Disconnected: " + reason);
+      });
+
+      // Listen to events
+      socket.on("key.issued", (data) => {
+        addEvent("🔑 Key Registered: " + JSON.stringify(data));
+      });
+
+      socket.on("key.deleted", (data) => {
+        addEvent("🗑️ Key Deleted: " + JSON.stringify(data));
+      });
+
+      socket.on("sandbox.created", (data) => {
+        addEvent("✏️ Sandbox Created: " + JSON.stringify(data));
+      });
+
+      // Emit test event after connection
+      socket.on("connect", () => {
+        socket.emit("key:register", { id: "abc123", name: "MyKey" });
+      });
+    </script>
+  </body>
+</html>

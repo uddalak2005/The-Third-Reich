@@ -12,5 +12,7 @@ message PromptRequest {
 }
 
 message PromptResponse {
-  bool approved = 1;  // Python server responds with yes/no
+  bool approved = 1;
+  string authorized = 2;
+  string detected = 3;
 }

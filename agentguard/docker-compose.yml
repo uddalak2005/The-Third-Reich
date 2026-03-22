@@ -40,6 +40,8 @@ services:
     ports:
       - "8081:8080"
       - "8888:8888"
+      - "50052:50051"
+      - "8889:8889"
     networks:
       - agentguard-net
     restart: unless-stopped
@@ -49,6 +51,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # Merged into 'agentguard' service for shared memory/state
+  # gRPC now runs as a background task in policy_daemon.py
+  # grpc-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: agentguard-grpc
+  #   ...
 
   exploitation-lab:
     build:
@@ -67,29 +78,6 @@ services:
       - GHOST_CONFIG=/app/Exploitation_Lab/config/config.yaml
     networks:
       - agentguard-net
-    depends_on:
-      agentguard:
-        condition: service_healthy
-    restart: unless-stopped
-
-  grpc-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: agentguard-grpc
-    volumes:
-      - ./policy.yaml:/app/policy.yaml:ro
-      - ./certs:/app/certs
-      - ./ag_proxy/patterns.json:/app/ag_proxy/patterns.json
-    environment:
-      - AGENTGUARD_GRPC_PORT=50051
-      - AGENTGUARD_SIGNING_SECRET=${AGENTGUARD_SIGNING_SECRET:-change-this-secret}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-    ports:
-      - "50052:50051"
-    networks:
-      - agentguard-net
-    entrypoint: ["python3", "backend/grpc_server.py"]
     depends_on:
       agentguard:
         condition: service_healthy

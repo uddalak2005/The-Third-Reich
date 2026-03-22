@@ -20,12 +20,12 @@ export class SentinelError extends Error {
 
 
 export class IntentViolationError extends SentinelError {
-    authorized: string
-    detected: string
+    authorized: string | boolean
+    detected: string | boolean
 
     constructor(
-        authorized: string,
-        detected: string,
+        authorized: string | boolean,
+        detected: string | boolean,
         traceId?: string
     ) {
         super(

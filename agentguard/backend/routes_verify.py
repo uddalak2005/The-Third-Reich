@@ -47,7 +47,7 @@ Wire format — response (malicious):
 import hashlib
 import hmac
 import json
-import logging
+import structlog
 import os
 import time
 from typing import Optional
@@ -55,9 +55,21 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
-log = logging.getLogger("verify_routes")
+log = structlog.get_logger()
 
 verify_router = APIRouter(tags=["verify"])
+
+# ── Internal state ─────────────────────────────────────────────────────────────
+_daemon_ref = None
+_ws_manager = None
+_audit_log  = None
+
+def attach_verify_routes(daemon, ws_manager, audit_log) -> None:
+    global _daemon_ref, _ws_manager, _audit_log
+    _daemon_ref = daemon
+    _ws_manager = ws_manager
+    _audit_log  = audit_log
+    log.info("verify_routes attached to daemon and ws_manager")
 
 # ── Signing secret ─────────────────────────────────────────────────────────────
 # Set AGENTGUARD_SIGNING_SECRET in your environment.
@@ -189,6 +201,39 @@ async def verify_prompt(body: PromptVerifyRequest):
             f"patterns={matched_patterns} "
             f"obfuscation={[f.layer for f in norm_findings]}"
         )
+
+        event_data = {
+            "ts":                int(time.time_ns()),
+            "event":             "intent_violation",
+            "verdict":           "block",
+            "reason":            f"injection:{','.join(matched_patterns)}",
+            "agent":             body.agent_id,
+            "source":            source,
+            "injection_score":   total_score,
+            "injection_patterns":matched_patterns,
+            "message":           f"Intent violation blocked: {matched_patterns}",
+            "blocked":           True
+        }
+
+        # Broadcast to WebSockets if attached
+        if _ws_manager:
+            await _ws_manager.broadcast_event(event_data)
+            await _ws_manager.broadcast_alert({
+                "type": "error",
+                "title": "Intent Violation BLOCKED",
+                "message": f"Agent {body.agent_id} attempted blocked intent. Score: {total_score}",
+                "blocked": True
+            })
+
+        # Update daemon stats if attached
+        if _daemon_ref:
+            log.info("Updating stats", old_blocked=_daemon_ref.stats.packets_blocked)
+            _daemon_ref.stats.packets_blocked += 1
+            _daemon_ref.stats.injections_found += 1
+            _daemon_ref.stats.blocked = True
+            _daemon_ref.event_log.append(event_data)
+            log.info("Stats updated", new_blocked=_daemon_ref.stats.packets_blocked)
+
         return _build_response(
             verdict  = "BLOCK",
             prompt   = None,     # never return malicious prompt

@@ -33,6 +33,7 @@ if str(_root_dir) not in _sys.path:
 
 import yaml
 import structlog
+log = structlog.get_logger()
 import uvicorn
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,10 +44,11 @@ try:
     from websocket_manager import ws_manager
     from routes_ws import ws_router
     from routes_demo import demo_router, attach_demo_routes
-    from routes_verify import verify_router
+    from routes_verify import verify_router, attach_verify_routes
     from audit_log import audit_log
     BACKEND_AVAILABLE = True
 except ImportError as _be_err:
+    log.error(f"BACKEND_AVAILABLE imports failed: {_be_err}")
     BACKEND_AVAILABLE = False
     _be_err_msg = str(_be_err)
 
@@ -267,6 +269,7 @@ class EventOut(BaseModel):
     size: int
     verdict: str
     threat_level: int
+    blocked: bool = False
     injection_score: Optional[int] = None
     payload_sample: Optional[str] = None
     syscall: Optional[str] = None
@@ -278,6 +281,7 @@ class StatsOut(BaseModel):
     syscalls_blocked: int = 0
     agents_tracked: int = 0
     kills_issued: int = 0
+    blocked: bool = False
 
 class VerdictResponse(BaseModel):
     status: str
@@ -741,6 +745,7 @@ class AgentGuardDaemon:
             "size":         evt.packet_size,
             "verdict":      VERDICT_LABELS.get(evt.verdict, str(evt.verdict)),
             "threat_level": evt.threat_level,
+            "blocked":      VERDICT_LABELS.get(evt.verdict) in ("block", "kill"),
         }
 
         with self._lock:
@@ -751,12 +756,14 @@ class AgentGuardDaemon:
             entry["payload_sample"]  = bytes(evt.payload_head).hex()[:32]
             with self._lock:
                 self.stats.injections_found += 1
+                self.stats.blocked          = True
             self.log.warning("prompt_injection_detected", **entry)
             self._alert(entry)
 
         elif evt.event_type == EVT_POLICY_BLOCK:
             with self._lock:
                 self.stats.packets_blocked += 1
+                self.stats.blocked = True
             self.log.info("packet_blocked", **entry)
 
         elif evt.event_type == EVT_AGENT_KILL:
@@ -765,6 +772,7 @@ class AgentGuardDaemon:
         elif evt.event_type == EVT_DATA_EXFIL:
             with self._lock:
                 self.stats.packets_blocked += 1
+                self.stats.blocked = True
             self.log.critical("data_exfiltration_attempt", **entry)
             self._alert(entry)
 
@@ -810,6 +818,7 @@ class AgentGuardDaemon:
         evt = SyscallEvent.from_buffer_copy(data)
         with self._lock:
             self.stats.syscalls_blocked += 1
+            self.stats.blocked = True
 
         syscall_names = {
             59: "execve", 322: "execveat", 57: "fork",  56: "clone",
@@ -895,6 +904,7 @@ class AgentGuardDaemon:
                         "proto":        6,
                         "size":         event.get("response_bytes", 0),
                         "verdict":      event.get("verdict", "allow"),
+                        "blocked":      event.get("verdict") == "block",
                         "threat_level": 2 if event.get("injection_score", 0) > 0 else 0,
                         "injection_score":    event.get("injection_score", 0),
                         "injection_patterns": event.get("injection_patterns", []),
@@ -953,13 +963,23 @@ _daemon: Optional[AgentGuardDaemon] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio as _asyncio
+    from backend.grpc_server import run_grpc_server
     global _daemon
     if _daemon is None:
         _daemon = _daemon_from_env()
     _daemon.start()
 
+    log.info(f"Startup check — BACKEND_AVAILABLE: {BACKEND_AVAILABLE}")
     if BACKEND_AVAILABLE:
+        log.info("Attaching backend routes...")
         attach_demo_routes(_daemon, ws_manager, audit_log)
+        attach_verify_routes(_daemon, ws_manager, audit_log)
+        log.info("Backend routes attached.")
+
+        # Start gRPC server in same process (shares Daemon and WSManager state)
+        _asyncio.create_task(run_grpc_server())
+        log.info("gRPC server started in background.")
+
         _stats_task = _asyncio.create_task(
             ws_manager.stats_ticker(
                 lambda: _daemon.stats.model_dump(), interval=1.0
@@ -1446,10 +1466,12 @@ def main() -> None:
     # Pass app object directly — avoids module reimport losing _daemon reference
     uvicorn.run(
         app,
-        host      = args.host,
-        port      = args.port,
-        reload    = False,        
-        log_level = "warning",
+        host                = args.host,
+        port                = args.port,
+        reload              = False,        
+        log_level           = "warning",
+        proxy_headers       = True,
+        forwarded_allow_ips = "*",
     )
 
 

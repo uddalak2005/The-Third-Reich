@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentGuard | WS Debugger</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --primary: #38bdf8;
+            --secondary: #94a3b8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .controls {
+            background: var(--card);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: var(--text);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        #connectBtn {
+            background: var(--primary);
+            color: #0f172a;
+        }
+
+        #connectBtn:hover {
+            opacity: 0.9;
+        }
+
+        #connectBtn.connected {
+            background: var(--error);
+            color: white;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--secondary);
+        }
+
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .log {
+            background: #020617;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            height: 60vh;
+            overflow-y: auto;
+            border: 1px solid #1e293b;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .entry {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #1e293b;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .timestamp {
+            color: var(--secondary);
+            font-size: 0.75rem;
+        }
+
+        .type {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .event { background: var(--primary); color: #0f172a; }
+        .stats { background: var(--secondary); color: #0f172a; }
+        .alert { background: var(--error); color: white; }
+
+        pre {
+            margin: 0.5rem 0 0 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .system-msg {
+            color: var(--secondary);
+            font-style: italic;
+            text-align: center;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AgentGuard WS Debugger</h1>
+            <p style="color: var(--secondary)">Real-time WebSocket event monitor</p>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="wsUrl" value="ws://localhost:8081/ws/dashboard">
+            <button id="connectBtn">Connect</button>
+            <div class="status">
+                <span id="indicator" class="indicator"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+        </div>
+
+        <div id="log" class="log">
+            <div class="system-msg">Enter URL and click Connect to start listening...</div>
+        </div>
+    </div>
+
+    <script>
+        const wsUrlInput = document.getElementById('wsUrl');
+        const connectBtn  = document.getElementById('connectBtn');
+        const logArea     = document.getElementById('log');
+        const indicator   = document.getElementById('indicator');
+        const statusText  = document.getElementById('statusText');
+
+        let ws = null;
+
+        function addLog(type, data) {
+            const entry = document.createElement('div');
+            entry.className = 'entry';
+            if (data.blocked === true) entry.style.borderLeft = '4px solid var(--error)';
+            
+            const ts = new Date().toLocaleTimeString();
+            
+            let badgeClass = 'event';
+            if (type === 'stats') badgeClass = 'stats';
+            if (type === 'alert') badgeClass = 'alert';
+
+            const blockedLabel = data.blocked === true ? 
+                `<span style="color: var(--error); font-weight: bold; margin-left: 0.5rem;">[BLOCKED]</span>` : '';
+
+            entry.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="type ${badgeClass}">${type}</span>
+                        ${blockedLabel}
+                        <span class="timestamp" style="margin-left: 0.5rem;">${ts}</span>
+                    </div>
+                </div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+
+            logArea.prepend(entry);
+        }
+
+        function setStatus(online, text) {
+            if (online) {
+                indicator.classList.add('online');
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.classList.add('connected');
+                statusText.textContent = text;
+            } else {
+                indicator.classList.remove('online');
+                connectBtn.textContent = 'Connect';
+                connectBtn.classList.remove('connected');
+                statusText.textContent = text;
+            }
+        }
+
+        connectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+                ws = null;
+                return;
+            }
+
+            const url = wsUrlInput.value;
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    setStatus(true, 'Connected');
+                    logArea.innerHTML = '<div class="system-msg">Connected to ' + url + '</div>';
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        addLog(msg.type || 'message', msg.data || msg);
+                    } catch (e) {
+                        addLog('raw', event.data);
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    setStatus(false, 'Error');
+                    const errEntry = document.createElement('div');
+                    errEntry.className = 'system-msg';
+                    errEntry.style.color = 'var(--error)';
+                    errEntry.textContent = 'Connection error. Make sure the backend is running at ' + url;
+                    logArea.prepend(errEntry);
+                };
+
+                ws.onclose = () => {
+                    setStatus(false, 'Disconnected');
+                    const closeEntry = document.createElement('div');
+                    closeEntry.className = 'system-msg';
+                    closeEntry.textContent = 'Connection closed.';
+                    logArea.prepend(closeEntry);
+                    ws = null;
+                };
+
+            } catch (e) {
+                alert('Invalid URL: ' + e.message);
+            }
+        });
+    </script>
+</body>
+</html>

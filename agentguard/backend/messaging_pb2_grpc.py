@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-import messaging_pb2 as messaging__pb2
+from backend import messaging_pb2 as backend_dot_messaging__pb2
 
-GRPC_GENERATED_VERSION = '1.68.1'
+GRPC_GENERATED_VERSION = '1.78.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in messaging_pb2_grpc.py depends on'
+        + ' but the generated code in backend/messaging_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -36,8 +36,8 @@ class PromptServiceStub(object):
         """
         self.SendPrompt = channel.unary_unary(
                 '/messaging.PromptService/SendPrompt',
-                request_serializer=messaging__pb2.PromptRequest.SerializeToString,
-                response_deserializer=messaging__pb2.PromptResponse.FromString,
+                request_serializer=backend_dot_messaging__pb2.PromptRequest.SerializeToString,
+                response_deserializer=backend_dot_messaging__pb2.PromptResponse.FromString,
                 _registered_method=True)
 
 
@@ -55,8 +55,8 @@ def add_PromptServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'SendPrompt': grpc.unary_unary_rpc_method_handler(
                     servicer.SendPrompt,
-                    request_deserializer=messaging__pb2.PromptRequest.FromString,
-                    response_serializer=messaging__pb2.PromptResponse.SerializeToString,
+                    request_deserializer=backend_dot_messaging__pb2.PromptRequest.FromString,
+                    response_serializer=backend_dot_messaging__pb2.PromptResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -84,8 +84,8 @@ class PromptService(object):
             request,
             target,
             '/messaging.PromptService/SendPrompt',
-            messaging__pb2.PromptRequest.SerializeToString,
-            messaging__pb2.PromptResponse.FromString,
+            backend_dot_messaging__pb2.PromptRequest.SerializeToString,
+            backend_dot_messaging__pb2.PromptResponse.FromString,
             options,
             channel_credentials,
             insecure,

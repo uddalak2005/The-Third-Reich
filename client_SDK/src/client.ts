@@ -49,8 +49,8 @@ function buildError(data: any, status: number): SentinelError {
     switch (code) {
         case 'INTENT_VIOLATION':
             return new IntentViolationError(
-                data?.authorized ?? '(unknown)',
-                data?.detected  ?? '(unknown)',
+                data?.authorized ?? false,
+                data?.detected  ?? false,
                 traceId
             )
         case 'KEY_REVOKED':
